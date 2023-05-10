@@ -8,5 +8,11 @@
 </head>
 <body>
     <h1>hello world</h1>
+
+    <script type="module">
+        import client from "../client.js"
+
+        client.getAll(null, (err, data) => console.log(data))
+    </script>
 </body>
 </html>

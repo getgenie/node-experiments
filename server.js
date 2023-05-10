@@ -1,50 +1,154 @@
-'use strict';
-
-import express from 'express';
-import path from 'path';
-import cors from 'cors';
-import dotenv from 'dotenv'; 
-const __dirname = path.resolve(path.dirname(''));
-
-dotenv.config()
-// Constants
-const PORT = process.env.PORT || 3000;
-const HOST = '0.0.0.0';
+import grpc from "@grpc/grpc-js"
+const PROTO_PATH = "./customer.proto"; 
+const NEWS_PROTO_PATH = "./news.proto"; 
+import protoLoader from "@grpc/proto-loader"
+import { v4 as uuidv4 } from "uuid"
+let server =  new grpc.Server()
 
 
-const app = express();
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+var packageDefinition = protoLoader.loadSync(PROTO_PATH, {
+    keepCase: true,
+    longs: String,
+    enums: String,
+    arrays: true
+});
 
-app.use(cors());
-app.use(function(req, res, next) {
-  res.header("Access-Control-Allow-Origin", "*");
-  next();
+var customersProto = grpc.loadPackageDefinition(packageDefinition);
+// var newsProto = grpc.loadPackageDefinition(newsPackageDefinition);
+
+const customersData = [
+    {
+        id: "a68b823c-7ca6-44bc-b721-fb4d5312cafc",
+        name: "John Bolton",
+        age: 23,
+        address: "Address 1"
+    },
+    {
+        id: "34415c7c-f82d-4e44-88ca-ae2a1aaa92b7",
+        name: "Mary Anne",
+        age: 45,
+        address: "Address 2"
+    }
+];
+
+server.addService(customersProto.CustomerService.service, {
+    getAll: (_, callback) => {
+        callback(null, { customers: customersData });
+    },
+
+    get: (call, callback) => {
+        let customer = customers.find(n => n.id == call.request.id);
+
+        if (customer) {
+            callback(null, customer);
+        } else {
+            callback({
+                code: grpc.status.NOT_FOUND,
+                details: "Not found"
+            });
+        }
+    },
+
+    insert: (call, callback) => {
+        let customer = call.request;
+        
+        customer.id = uuidv4();
+        customers.push(customer);
+        callback(null, customer);
+    },
+
+    update: (call, callback) => {
+        let existingCustomer = customers.find(n => n.id == call.request.id);
+
+        if (existingCustomer) {
+            existingCustomer.name = call.request.name;
+            existingCustomer.age = call.request.age;
+            existingCustomer.address = call.request.address;
+            callback(null, existingCustomer);
+        } else {
+            callback({
+                code: grpc.status.NOT_FOUND,
+                details: "Not found"
+            });
+        }
+    },
+
+    remove: (call, callback) => {
+        let existingCustomerIndex = customers.findIndex(
+            n => n.id == call.request.id
+        );
+
+        if (existingCustomerIndex != -1) {
+            customers.splice(existingCustomerIndex, 1);
+            callback(null, {});
+        } else {
+            callback({
+                code: grpc.status.NOT_FOUND,
+                details: "Not found"
+            });
+        }
+    }
+});
+server.addService(customersProto.NewsService.service, {
+    getAll: (_, callback) => {
+        callback(null, { news: customersData });
+    },
+
+    // get: (call, callback) => {
+    //     let customer = customers.find(n => n.id == call.request.id);
+
+    //     if (customer) {
+    //         callback(null, customer);
+    //     } else {
+    //         callback({
+    //             code: grpc.status.NOT_FOUND,
+    //             details: "Not found"
+    //         });
+    //     }
+    // },
+
+    // insert: (call, callback) => {
+    //     let customer = call.request;
+        
+    //     customer.id = uuidv4();
+    //     customers.push(customer);
+    //     callback(null, customer);
+    // },
+
+    // update: (call, callback) => {
+    //     let existingCustomer = customers.find(n => n.id == call.request.id);
+
+    //     if (existingCustomer) {
+    //         existingCustomer.name = call.request.name;
+    //         existingCustomer.age = call.request.age;
+    //         existingCustomer.address = call.request.address;
+    //         callback(null, existingCustomer);
+    //     } else {
+    //         callback({
+    //             code: grpc.status.NOT_FOUND,
+    //             details: "Not found"
+    //         });
+    //     }
+    // },
+
+    // remove: (call, callback) => {
+    //     let existingCustomerIndex = customers.findIndex(
+    //         n => n.id == call.request.id
+    //     );
+
+    //     if (existingCustomerIndex != -1) {
+    //         customers.splice(existingCustomerIndex, 1);
+    //         callback(null, {});
+    //     } else {
+    //         callback({
+    //             code: grpc.status.NOT_FOUND,
+    //             details: "Not found"
+    //         });
+    //     }
+    // }
 });
 
 
-app.get('/', async (req, res) => {
-  res.sendFile(__dirname + '/static/index.html');
-});
-
-app.get('/pool', async (req, res) => {
-  res.status(200).send('OK');
-});
-
-
-app.post('/test1', (req, res) => {
-//   new usageStats(req, res).getLimitUsage();
-})
-
-
-console.log(`'HTTP server started' on port ${PORT}`);
-
-const server = app.listen(+PORT, HOST,()=>{});
-
-function closeGracefully(signal) {
-  server.close(() => {
-    console.log(`'HTTP server closed'`)
-  })
-}
-
-process.on('SIGTERM', closeGracefully)
+server.bindAsync("127.0.0.1:30043", grpc.ServerCredentials.createInsecure(),  ()=> server.start());
+console.log("Server running at http://127.0.0.1:30043");
+;
