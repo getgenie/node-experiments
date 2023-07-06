@@ -1,73 +1,9 @@
-import client from "./client.js";
+import { encrypt, decrypt } from "./crypto.js";
+import {promises as fs} from 'fs'
 
-import  path from "path"
-import  express from "express"
-import  bodyParser from "body-parser"
-
-const app = express();
-
-// app.set("views", path.join(__dirname, "views"));
-// app.set("view engine", "hbs");
-
-app.use(bodyParser.json());
-app.use(bodyParser.urlencoded({ extended: false }));
-
-app.get("/static", (req, res) => {
-    
-});
-
-app.get("/", (req, res) => {
-    client.getAll(null, (err, data) => {
-        // console.log(data)
-        // if (!err) {
-        //     res.send({
-        //         results: data.customers
-        //     });
-        // }
-    });
-});
-
-app.post("/save", (req, res) => {
-    let newCustomer = {
-        name: req.body.name,
-        age: req.body.age,
-        address: req.body.address
-    };
-
-    client.insert(newCustomer, (err, data) => {
-        if (err) throw err;
-
-        console.log("Customer created successfully", data);
-        res.redirect("/");
-    });
-});
-
-app.post("/update", (req, res) => {
-    const updateCustomer = {
-        id: req.body.id,
-        name: req.body.name,
-        age: req.body.age,
-        address: req.body.address
-    };
-
-    client.update(updateCustomer, (err, data) => {
-        if (err) throw err;
-
-        console.log("Customer updated successfully", data);
-        res.redirect("/");
-    });
-});
-
-app.post("/remove", (req, res) => {
-    client.remove({ id: req.body.customer_id }, (err, _) => {
-        if (err) throw err;
-
-        console.log("Customer removed successfully");
-        res.redirect("/");
-    });
-});
-
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-    console.log("Server running at port %d", PORT);
-});
+const password = 'password'
+const file = await fs.readFile('./Chipmunk.mp4')
+const encrypted = encrypt(file, password)
+const decrypted = decrypt(encrypted.encrypted, password, encrypted.authTag)
+fs.writeFile('./test1-1.mp4', encrypted.encrypted)
+fs.writeFile('./test1.mp4', decrypted)
